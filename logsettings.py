@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 
-import os
+import os.path
 import platform
 import sys
 from logging.handlers import SysLogHandler
 
 
-def get_logger_config(log_dir,
-                      logging_env="no_env",
-                      edx_filename="edx.log",
-                      dev_env=False,
-                      debug=False,
-                      local_loglevel='INFO',
-                      service_variant=None):
-
+def get_logger_config(
+    log_dir,
+    logging_env='no_env',
+    edx_filename='edx.log',
+    dev_env=False,
+    debug=False,
+    local_loglevel='INFO',
+):
     """
     Return the appropriate logging config dictionary. You should assign the
     result of this to the LOGGING var in your settings. The reason it's done
@@ -26,22 +26,22 @@ def get_logger_config(log_dir,
 
     "edx_filename" are ignored unless dev_env
     is set to true since otherwise logging is handled by rsyslogd.
-
     """
-
-    # Revert to INFO if an invalid string is passed in
-    if local_loglevel not in ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']:
-        local_loglevel = 'INFO'
-
+    # TODO: is logging_env even needed?
+    handlers = ['console', 'local']
     hostname = platform.node().split(".")[0]
-    syslog_format = ("[service_variant={service_variant}]"
-                     "[%(name)s][env:{logging_env}] %(levelname)s "
-                     "[{hostname}  %(process)d] [%(filename)s:%(lineno)d] "
-                     "- %(message)s").format(service_variant=service_variant,
-                                             logging_env=logging_env, hostname=hostname)
-
-    handlers = ['console', 'local'] if debug else ['console', 'local']
-
+    syslog_format = (
+        "[service_variant=certs]"
+        "[%(name)s]"
+        "[env:{logging_env}] "
+        "%(levelname)s "
+        "[{hostname}  %(process)d] "
+        "[%(filename)s:%(lineno)d] "
+        "- %(message)s"
+    ).format(
+        logging_env=logging_env,
+        hostname=hostname,
+    )
     logger_config = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -74,7 +74,6 @@ def get_logger_config(log_dir,
             },
         }
     }
-
     if dev_env:
         edx_file_loc = os.path.join(log_dir, edx_filename)
         logger_config['handlers'].update({
@@ -97,5 +96,4 @@ def get_logger_config(log_dir,
                 'facility': SysLogHandler.LOG_LOCAL0,
             },
         })
-
     return logger_config

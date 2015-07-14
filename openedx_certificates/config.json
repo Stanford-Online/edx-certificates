@@ -1,0 +1,60 @@
+{
+    "//AUTH_JSON": "",
+    "QUEUE_AUTH_USER": "",
+    "QUEUE_AUTH_PASS": "",
+    "QUEUE_USER": "",
+    "QUEUE_PASS": "",
+    "CERT_AWS_ID": "",
+    "CERT_AWS_KEY": "",
+    "DEFAULT_ORG": "",
+    "//ENV_JSON": "",
+    "CERT_BUCKET": "verify-test.edx.org",
+    "CERT_DATA": {
+    },
+    "CERT_DATA_FILE": "cert-data.yml",
+    "CERT_DOWNLOAD_URL": "https://verify-test.edx.org.s3.amazonaws.com",
+    "CERT_FILENAME": "Certificate.pdf",
+    "CERT_KEY_ID": "FEF8D954",
+    "CERT_PRIVATE_DIR": ".",
+    "CERT_VERIFY_URL": "https://verify-test.edx.org.s3.amazonaws.com",
+    "CERT_WEB_ROOT": "/var/tmp",
+    "CERTS_ARE_CALLED": "certificate",
+    "CERTS_ARE_CALLED_PLURAL": "certificates",
+    "CERTS_SITE_DISCLAIMER_TEXT": "<b>PLEASE NOTE:</b> SOME ONLINE COURSES MAY DRAW ON MATERIAL FROM COURSES TAUGHT ON-CAMPUS BUT THEY ARE NOT EQUIVALENT TO ON-CAMPUS COURSES. THIS STATEMENT DOES NOT AFFIRM THAT THIS PARTICIPANT WAS ENROLLED AS A STUDENT AT STANFORD UNIVERSITY IN ANY WAY. IT DOES NOT CONFER A STANFORD UNIVERSITY GRADE, COURSE CREDIT OR DEGREE, AND IT DOES NOT VERIFY THE IDENTITY OF THE PARTICIPANT.",
+    "COPY_TO_WEB_ROOT": false,
+    "DEBUG": true,
+    "DEFAULT_LOCALE": "en_US",
+    "DEFAULT_TRANSLATIONS": {
+        "en_US": {
+            "success_text": "has successfully completed a free online offering of",
+            "grade_interstitial": "with {grade}.",
+            "disclaimer_text": "<b>PLEASE NOTE:</b> SOME ONLINE COURSES MAY DRAW ON MATERIAL FROM COURSES TAUGHT ON-CAMPUS BUT THEY ARE NOT EQUIVALENT TO ON-CAMPUS COURSES. THIS STATEMENT DOES NOT AFFIRM THAT THIS PARTICIPANT WAS ENROLLED AS A STUDENT AT STANFORD UNIVERSITY IN ANY WAY. IT DOES NOT CONFER A STANFORD UNIVERSITY GRADE, COURSE CREDIT OR DEGREE, AND IT DOES NOT VERIFY THE IDENTITY OF THE PARTICIPANT.",
+            "verify_text": "Authenticity can be verified at {verify_link}"
+        }
+    },
+    "LOCAL_LOGLEVEL": "INFO",
+    "LOG_DIR": "/var/tmp",
+    "LOGGING_ENV": "dev",
+    "LOGGING_DEV_ENV": true,
+    "QUEUE_NAME": "test-pull",
+    "QUEUE_URL": "https://stage-xqueue.edx.org",
+    "S3_CERT_PATH": "downloads",
+    "S3_UPLOAD": true,
+    "S3_VERIFY_PATH": "cert",
+    "TEMPLATE_DATA_SUBDIR": "template_data",
+    "TMP_GEN_DIR": "/tmp/certificates/",
+    "//QUEUE_AUTH_USER": "",
+    "//QUEUE_AUTH_PASS": "",
+    "//QUEUE_USER": "lms",
+    "//QUEUE_PASS": "",
+    "//CERT_AWS_ID": "",
+    "//CERT_AWS_KEY": "",
+    "//DEFAULT_ORG": "",
+    "//storage": {
+        "s3": {
+            "bucket": "verify-test.edx.org",
+            "upload": true,
+            "verify_path": "cert"
+        }
+    }
+}

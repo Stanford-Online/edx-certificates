@@ -1,0 +1,49 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s %(levelname)s %(process)d [%(name)s] %(filename)s:%(lineno)d - %(message)s"
+        },
+        "syslog_format": {
+            "format": "[service_variant=certs] [%(name)s] [env:dev] %(levelname)s [pid:%(process)d] [%(filename)s:%(lineno)d] - %(message)s"
+        },
+        "raw": {
+            "format": "%(message)s"
+        }
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
+            "formatter": "standard"
+        },
+        "local": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": "DEBUG",
+            "formatter": "standard",
+            "filename": "/tmp/certificates/edx.log",
+            "maxBytes": 2097152,
+            "backupCount": 5
+        }
+    },
+    "loggers": {
+        "": {
+            "handlers": [
+                "console",
+                "local"
+            ],
+            "level": "ERROR",
+            "propagate": false
+        },
+        "openedx_certificates": {
+            "handlers": [
+                "console",
+                "local"
+            ],
+            "level": "DEBUG",
+            "propagate": false
+        }
+    }
+}
