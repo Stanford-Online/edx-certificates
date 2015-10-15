@@ -41,6 +41,8 @@ from openedx_certificates.renderers.util import apply_style_to_font_list
 from openedx_certificates.renderers.util import autoscale_text
 from openedx_certificates.renderers.util import font_for_string
 from openedx_certificates.renderers.util import WIDTH_LANDSCAPE_PAGE_IN_POINTS
+from openedx_certificates.renderers.elements import draw_template_element
+from openedx_certificates.renderers.elements import draw_instructor_element
 
 reportlab.rl_config.warnOnMissingFontGlyphs = 0
 
@@ -166,18 +168,21 @@ class CertificateGen(object):
         # If TEMPLATEFILE is set in cert-data.yml, this value has top priority.
         # Else if a value is passed in to the constructor (eg, from xqueue), it is used,
         # Else, the filename is calculated from the version and course_id.
+
         template_pdf = cert_data.get('TEMPLATEFILE', template_pdf)
-        template_prefix = '{0}/v{1}-cert-templates'.format(TEMPLATE_DIR, self.template_version)
-        template_pdf_filename = "{0}/certificate-template-{1}-{2}.pdf".format(template_prefix, self.org, self.course)
-        if template_pdf:
-            template_pdf_filename = "{0}/{1}".format(template_prefix, template_pdf)
-            if 'verified' in template_pdf:
-                self.template_type = 'verified'
-        try:
-            self.template_pdf = PdfFileReader(file(template_pdf_filename, "rb"))
-        except IOError as e:
-            log.critical("I/O error ({0}): {1} opening {2}".format(e.errno, e.strerror, template_pdf_filename))
-            raise
+
+        if template_pdf is not False:
+            template_prefix = '{0}/v{1}-cert-templates'.format(TEMPLATE_DIR, self.template_version)
+            template_pdf_filename = "{0}/certificate-template-{1}-{2}.pdf".format(template_prefix, self.org, self.course)
+            if template_pdf:
+                template_pdf_filename = "{0}/{1}".format(template_prefix, template_pdf)
+                if 'verified' in template_pdf:
+                    self.template_type = 'verified'
+            try:
+                self.template_pdf = PdfFileReader(file(template_pdf_filename, "rb"))
+            except IOError as e:
+                log.critical("I/O error ({0}): {1} opening {2}".format(e.errno, e.strerror, template_pdf_filename))
+                raise
 
         self.cert_label_singular = cert_data.get('CERTS_ARE_CALLED', CERTS_ARE_CALLED)
         self.cert_label_plural = cert_data.get('CERTS_ARE_CALLED_PLURAL', CERTS_ARE_CALLED_PLURAL)
@@ -285,6 +290,7 @@ class CertificateGen(object):
             'MIT_PE': self._generate_mit_pe_certificate,
             'stanford': self._generate_stanford_SOA,
             '3_dynamic': self._generate_v3_dynamic_certificate,
+            '4_programmatic': self._generate_v4_certificate,
             'stanford_cme': self._generate_stanford_cme_certificate,
         }
         # TODO: we should be taking args, kwargs, and passing those on to our callees
@@ -1831,6 +1837,361 @@ class CertificateGen(object):
         # It is fastest if the bottom layer is blank and loaded from memory
         final_certificate = copy.copy(BLANK_PDFS['landscape-A4']).getPage(0)
         final_certificate.mergePage(self.template_pdf.getPage(0))
+        final_certificate.mergePage(overlay.getPage(0))
+
+        output.addPage(final_certificate)
+
+        self._ensure_dir(filename)
+
+        outputStream = file(filename, "wb")
+        output.write(outputStream)
+        outputStream.close()
+
+        # have to create the verification page seperately from the above
+        # conditional because filename must have already been written.
+        if verify_me_p:
+            self._generate_verification_page(
+                student_name,
+                filename,
+                verify_dir,
+                verify_uuid,
+                download_url,
+            )
+
+        return (download_uuid, verify_uuid, download_url)
+
+    def _generate_v4_certificate(
+        self,
+        student_name,
+        download_dir,
+        verify_dir,
+        filename=TARGET_FILENAME,
+        grade=None,
+        designation=None,
+        generate_date=None,
+    ):
+        """Generate a PDF certificate, signature and html files for validation.
+
+        REQUIRED PARAMETERS:
+        student_name  - specifies student name as it must appear on the cert.
+        download_dir  -
+        verify_dir    -
+
+        OPTIONAL PARAMETERS:
+        filename      - the filename to write out, e.g., 'Statement.pdf'.
+                        Defaults to settings.TARGET_FILENAME.
+        grade         - the grade received by the student. Defaults to 'Pass'
+        generate_date - specifies an ISO formatted date (i.e., '2012-02-02')
+                        with which to stamp the cert. Defaults to CERT_DATA's
+                        ISSUED_DATE, or today's date for ROLLING.
+
+        CONFIGURATION PARAMETERS:
+            The following items are brought in from the cert-data.yml stanza for the
+        current course:
+        LONG_COURSE    - (optional) The course title to be printed on the cert;
+                         unset means to use the value passed in as part of the
+                         certificate request.
+        ISSUED_DATE    - (optional) If given, the date string which should be
+                         stamped onto each and every certificate. The value
+                         ROLLING is equivalent to leaving ISSUED_DATE unset, which
+                         stamps the certificates with the current date.
+        HAS_DISCLAIMER - (optional) If given, the programmatic disclaimer that
+                         is usually rendered at the bottom of the page, is not.
+        TEMPLATEFILE   - (optional) If given, the filename referred to by
+                         TEMPLATEFILE will be used as the template over which
+                         to render.
+
+        RETURNS (download_uuid, verify_uuid, download_url)
+        """
+
+        verify_me_p = self.cert_data.get('VERIFY', True)
+        verify_uuid = uuid.uuid4().hex if verify_me_p else ''
+        download_uuid = uuid.uuid4().hex
+        download_url = "{base_url}/{cert}/{uuid}/{file}".format(
+            base_url=settings.CERT_DOWNLOAD_URL,
+            cert=S3_CERT_PATH,
+            uuid=download_uuid,
+            file=filename,
+        )
+
+        filename = os.path.join(download_dir, download_uuid, filename)
+
+        # This file is overlaid on the template certificate
+        overlay_pdf_buffer = StringIO.StringIO()
+        PAGE = canvas.Canvas(overlay_pdf_buffer, pagesize=landscape(A4))
+
+        WIDTH, HEIGHT = landscape(A4)  # Width and Height of landscape canvas (in points)
+        # WIDTH = 841.88976378 pts
+        # HEIGHT = 595.275590551 pts
+
+        ##### Fonts #####
+
+        # 0 0 - normal
+        # 0 1 - italic
+        # 1 0 - bold
+        # 1 1 - italic and bold
+        addMapping('OpenSans-Light', 0, 0, 'OpenSans-Light')
+        addMapping('OpenSans-Light', 1, 0, 'OpenSans-Bold')
+        addMapping('SourceSansPro-Regular', 0, 0, 'SourceSansPro-Regular')
+        addMapping('SourceSansPro-Regular', 1, 0, 'SourceSansPro-Bold')
+        addMapping('SourceSansPro-Regular', 1, 1, 'SourceSansPro-BoldItalic')
+
+        styleArial = ParagraphStyle(name="arial", fontName='Arial Unicode')
+        styleOpenSansLight = ParagraphStyle(name="opensans-light", fontName='OpenSans-Light')
+        styleSourceSansPro = ParagraphStyle(name="sourcesans-regular", fontName='SourceSansPro-Regular')
+
+        # These are ordered by preference; cf. font_for_string() above
+        self.fontlist = [
+            ('SourceSansPro-Regular', 'SourceSansPro-Regular.ttf', None),
+            ('OpenSans-Light', 'OpenSans-Light.ttf', None),
+            ('Arial Unicode', 'Arial Unicode.ttf', None),
+        ]
+        fontlist = self.fontlist
+
+        # add getters here
+        #context = {
+        #    date: date.format(),
+        #    course_display_name: "get display name",
+        #}
+
+        # Render Cert Template
+        render_template = self.cert_data.get('render_template', [])
+        for ordered_element in render_template:
+            for element, attributes in ordered_element.iteritems():
+                draw_template_element(self, element, attributes, PAGE)
+
+        # Render Instructor Blocks
+        instructors = self.cert_data.get('instructors', [])
+        instructor_template = self.cert_data.get('instructor_template', [])
+        for instructor in instructors:
+            for element, attributes in instructor.iteritems():
+                draw_instructor_element(self, attributes, instructor_template, PAGE)
+
+        ######################### Copied from v3 #########################
+
+        MAX_GEN_WIDTH = WIDTH * .5  # Width to which to constrain text block
+        MAX_FULL_WIDTH = WIDTH * .72  # Width to which to constrian full page text blocks
+        GUTTER_WIDTH = 120  # Space from the left and right sides (in points)
+        DATE_INDENT_TOP = 112  # Space from top for Date (in points)
+        STANDARD_GRAY = colors.Color(0.13, 0.14, 0.22)  # Main dark gray text color
+        COURSE_TITLE_COLOR = colors.Color(.5,0,0)  # Special red color for course title
+
+        style_date_text = ParagraphStyle(
+            name="date-text",
+            fontSize=12,
+            leading=14,
+            textColor=STANDARD_GRAY,
+            alignment=TA_RIGHT,
+        )
+        style_big_name_text = ParagraphStyle(
+            name="big-name-text",
+            textColor=STANDARD_GRAY,
+            alignment=TA_LEFT,
+        )
+        style_standard_text = ParagraphStyle(
+            name="standard-text",
+            fontSize=14,
+            leading=18,
+            textColor=STANDARD_GRAY,
+            alignment=TA_LEFT,
+        )
+        style_big_course_text = ParagraphStyle(
+            name="big-course-text",
+            textColor=COURSE_TITLE_COLOR,
+            alignment=TA_LEFT,
+        )
+        style_small_text = ParagraphStyle(
+            name="small-text",
+            fontSize=7.5,
+            leading=10,
+            textColor=STANDARD_GRAY,
+            alignment=TA_LEFT,
+        )
+
+        # Text is overlayed top to bottom with one exception
+        #   * Issued date (top right)
+        #   * Student's name (scaled to fit and centered vertically)
+        #   * "has successfully completed an online offering of"
+        #   * Course Title (scaled to fit and centered vertically)
+        #   * optional "with *Distinction*." or some other level with optional description
+        #   * honor code url at the bottom
+
+        # SECTION: Issued Date
+        date_string = get_cert_date(generate_date, self.issued_date, self.locale)
+
+        (fonttag, fontfile, date_style) = font_for_string(
+            apply_style_to_font_list(fontlist, style_date_text),
+            date_string
+        )
+        max_width = 125
+        max_height = date_style.fontSize
+
+        paragraph = Paragraph(date_string, date_style)
+        width, height = paragraph.wrapOn(PAGE, max_width, max_height)
+
+        # positioning paragraph wrapping box from its bottom left corner
+        # calculating positioning for top right corner of page
+        paragraph.drawOn(PAGE, (WIDTH - GUTTER_WIDTH - max_width), (HEIGHT - DATE_INDENT_TOP))
+
+        # SECTION: Student name
+        student_name_string = u"<b>{0}</b>".format(student_name.decode('utf-8'))
+        (fonttag, fontfile, name_style) = font_for_string(
+            apply_style_to_font_list(fontlist, style_big_name_text),
+            student_name_string
+        )
+
+        maxFontSize = 42      # good default name text size (in points)
+        max_leading = maxFontSize * 1.2
+        max_height = maxFontSize * 1.2
+        max_width = MAX_GEN_WIDTH
+        minYOffset = 415     # distance from bottom of page (in points)
+
+        paragraph = autoscale_text(
+            PAGE,
+            student_name_string,
+            maxFontSize,
+            max_leading,
+            max_height,
+            max_width,
+            name_style
+        )
+        width, height = paragraph.wrapOn(PAGE, max_width, max_height)
+
+        yOffset = minYOffset + ((max_height - height) / 2)
+        paragraph.drawOn(PAGE, GUTTER_WIDTH - (name_style.fontSize / 12), yOffset)
+
+        default_translation = settings.DEFAULT_TRANSLATIONS.get(settings.DEFAULT_LOCALE, {})
+        successfully_completed = default_translation.get('success_text', '')
+        grade_interstitial = default_translation.get('grade_interstitial', '')
+        disclaimer_text = default_translation.get('disclaimer_text', '')
+        verify_text = default_translation.get('verify_text', '')
+
+        if self.locale in self.course_translations:
+            successfully_completed = self.course_translations[self.locale].get('success_text', successfully_completed)
+            grade_interstitial = self.course_translations[self.locale].get('grade_interstitial', grade_interstitial)
+            disclaimer_text = self.course_translations[self.locale].get('disclaimer_text', disclaimer_text)
+            verify_text = self.course_translations[self.locale].get('verify_text', verify_text)
+
+        # SECTION: Successfully completed
+        (fonttag, fontfile, completed_style) = font_for_string(
+            apply_style_to_font_list(fontlist, style_standard_text),
+            successfully_completed,
+        )
+
+        max_height = completed_style.leading
+        max_width = MAX_GEN_WIDTH
+        yOffset = 390     # distance from bottom of page (in points)
+
+        paragraph = Paragraph(successfully_completed, completed_style)
+        width, height = paragraph.wrapOn(PAGE, max_width, max_height)
+
+        paragraph.drawOn(PAGE, GUTTER_WIDTH, yOffset)
+
+        # SECTION: Course Title
+        course_name_string = self.long_course.decode('utf-8')
+        course_title = u"<b>{0}</b>".format(course_name_string)
+
+        (fonttag, fontfile, course_style) = font_for_string(
+            apply_style_to_font_list(fontlist, style_big_course_text),
+            course_title
+        )
+
+        maxFontSize = 36      # good default name text size (in points)
+        max_leading = maxFontSize * 1.1
+        max_height = maxFontSize * 2.1
+        max_width = MAX_GEN_WIDTH
+        minYOffset = 305     # distance from bottom of page (in points)
+
+        paragraph = autoscale_text(PAGE, course_title, maxFontSize, max_leading, max_height, max_width, course_style)
+        width, height = paragraph.wrapOn(PAGE, max_width, max_height)
+
+        yOffset = minYOffset + ((max_height - height) / 2) + (course_style.fontSize / 5)
+
+        paragraph.drawOn(PAGE, GUTTER_WIDTH, yOffset)
+
+        # SECTION: Extra achievements
+        achievements_string = ""
+        achievements_description_string = self.interstitial_texts[grade].decode('utf-8')
+        if grade and grade.lower() != 'pass':
+            grade_html = u"<b>{grade}</b>".format(grade=grade.decode('utf-8'))
+            achievements_string = grade_interstitial.decode('utf-8').format(grade=grade_html) + '<br /><br />'
+        achievements_paragraph = u"{0}{1}".format(achievements_string, achievements_description_string)
+
+        (fonttag, fontfile, achievements_style) = font_for_string(
+            apply_style_to_font_list(fontlist, style_standard_text),
+            achievements_paragraph,
+        )
+
+        max_height = achievements_style.leading * 9  # allow for up to 9 lines of text
+        max_width = MAX_GEN_WIDTH
+        minYOffset = 135  # distance from bottom of page (in points)
+
+        paragraph = Paragraph(achievements_paragraph, achievements_style)
+        width, height = paragraph.wrapOn(PAGE, max_width, max_height)
+
+        yOffset = minYOffset + (max_height - height)
+
+        paragraph.drawOn(PAGE, GUTTER_WIDTH, yOffset)
+
+        # SECTION: disclaimer text
+        print_disclaimer = not self.cert_data.get('HAS_DISCLAIMER', False)
+        if print_disclaimer and disclaimer_text:
+            (fonttag, fontfile, disclaimer_style) = font_for_string(
+                apply_style_to_font_list(fontlist, style_small_text),
+                disclaimer_text,
+            )
+
+            max_height = disclaimer_style.leading * 3  # allow for up to 9 lines of text
+            max_width = MAX_FULL_WIDTH
+            yOffset = 89  # distance from bottom of page (in points)
+
+            paragraph = Paragraph(disclaimer_text, disclaimer_style)
+            width, height = paragraph.wrapOn(PAGE, max_width, max_height)
+
+            paragraph.drawOn(PAGE, GUTTER_WIDTH, yOffset)
+
+        # SECTION: Honor code
+        if verify_me_p:
+            verify_link = (
+                u"<a href='{verify_url}/{verify_path}/{verify_uuid}'>"
+                u"<b>{verify_url}/{verify_path}/{verify_uuid}</b>"
+                u"</a>"
+            ).encode('utf-8').format(
+                verify_url=settings.CERT_VERIFY_URL,
+                verify_path=S3_VERIFY_PATH,
+                verify_uuid=verify_uuid,
+            )
+
+            paragraph_string = verify_text.format(
+                verify_link=verify_link,
+            )
+
+            (fonttag, fontfile, honor_style) = font_for_string(
+                apply_style_to_font_list(fontlist, style_small_text),
+                achievements_paragraph,
+            )
+
+            max_height = 10
+            max_width = MAX_FULL_WIDTH
+
+            paragraph = Paragraph(paragraph_string, honor_style)
+            paragraph.wrapOn(PAGE, max_width, max_height)
+            paragraph.drawOn(PAGE, GUTTER_WIDTH, 70)
+
+        ######################### Copied from v3 #########################
+
+
+        # Render Page
+        PAGE.showPage()
+        PAGE.save()
+
+        # Merge the overlay with the template, then write it to file
+        output = PdfFileWriter()
+        overlay = PdfFileReader(overlay_pdf_buffer)
+
+        # We render the final certificate by merging several rendered pages.
+        # It is fastest if the bottom layer is blank and loaded from memory
+        final_certificate = copy.copy(BLANK_PDFS['landscape-A4']).getPage(0)
         final_certificate.mergePage(overlay.getPage(0))
 
         output.addPage(final_certificate)

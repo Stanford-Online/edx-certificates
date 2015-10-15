@@ -10,7 +10,9 @@ from reportlab.lib.pagesizes import landscape
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.lib.fonts import addMapping
 from reportlab.platypus import Paragraph
+from reportlab.lib.styles import ParagraphStyle
 
 logging.config.dictConfig(settings.LOGGING)
 log = logging.getLogger('certificates.' + __name__)
