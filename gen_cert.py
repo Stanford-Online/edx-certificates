@@ -48,7 +48,6 @@ from openedx_certificates.renderers.util import WIDTH_LANDSCAPE_PAGE_IN_POINTS
 
 reportlab.rl_config.warnOnMissingFontGlyphs = 0
 
-
 RE_ISODATES = re.compile("(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})")
 TEMPLATE_DIR = settings.TEMPLATE_DIR
 BUCKET = settings.CERT_BUCKET
@@ -171,6 +170,8 @@ class CertificateGen(object):
         # get the template version based on the course settings in the
         # certificates repo, with sensible defaults so that we can generate
         # pdfs differently for the different templates
+        self.template_font_name = cert_data.get('font_name', 'OpenSans')
+        self.template_font_type = cert_data.get('font_type', 'Light')
         self.template_version = cert_data.get('VERSION', 1)
         self.template_type = 'honor'
         # search for certain keywords in the file name, we'll probably want to
@@ -1947,16 +1948,15 @@ class CertificateGen(object):
         # 0 1 - italic
         # 1 0 - bold
         # 1 1 - italic and bold
-        addMapping('OpenSans-Light', 0, 0, 'OpenSans-Light')
-        addMapping('OpenSans-Light', 1, 0, 'OpenSans-Bold')
-        addMapping('SourceSansPro-Regular', 0, 0, 'SourceSansPro-Regular')
-        addMapping('SourceSansPro-Regular', 1, 0, 'SourceSansPro-Bold')
-        addMapping('SourceSansPro-Regular', 1, 1, 'SourceSansPro-BoldItalic')
+        font_string=self.template_font_name+'-'+self.template_font_type
+        addMapping(font_string, 0, 0, font_string)
+        addMapping(font_string, 1, 0, self.template_font_name+'-Italic')
+        addMapping(font_string, 1, 0, self.template_font_name+'-Bold')
+        addMapping(font_string, 1, 1, self.template_font_name+'-BoldItalic')
 
         # These are ordered by preference; cf. font_for_string() above
         self.fontlist = [
-            ('SourceSansPro-Regular', 'SourceSansPro-Regular.ttf', None),
-            ('OpenSans-Light', 'OpenSans-Light.ttf', None),
+            (font_string, font_string+'.ttf', None),
             ('Arial Unicode', 'Arial Unicode.ttf', None),
         ]
         fontlist = self.fontlist
