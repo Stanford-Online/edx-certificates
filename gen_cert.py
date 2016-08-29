@@ -81,6 +81,7 @@ gets_md_cert_list = [
     'MBBS',
 ]
 
+
 def get_cert_date(
         calling_date_parameter,
         configured_date_parameter,
@@ -1512,7 +1513,12 @@ class CertificateGen(object):
 
         styleArial = ParagraphStyle(name="arial", leading=10, fontName='Arial Unicode', allowWidows=0)
         styleOpenSansLight = ParagraphStyle(name="opensans-light", leading=10, fontName='OpenSans-Light', allowWidows=0)
-        styleDroidSerif = ParagraphStyle(name="droidserif-regular", leading=10, fontName='DroidSerif-Regular', allowWidows=0)
+        styleDroidSerif = ParagraphStyle(
+            name="droidserif-regular",
+            leading=10,
+            fontName='DroidSerif-Regular',
+            allowWidows=0
+        )
 
         # These are ordered by preference; cf. font_for_string() above
         fontlist = [
@@ -2025,7 +2031,7 @@ class CertificateGen(object):
 
         # Add course credits if it exists
         credit_info = self.cert_data.get('CREDITS')
-        credits_string=''
+        credits_string = ''
         if credit_info:
             credits_string = u"and is awarded {credit_info}".format(
                 credit_info=credit_info.decode('utf-8'),
