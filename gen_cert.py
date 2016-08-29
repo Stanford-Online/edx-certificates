@@ -48,6 +48,7 @@ from openedx_certificates.renderers.util import WIDTH_LANDSCAPE_PAGE_IN_POINTS
 
 reportlab.rl_config.warnOnMissingFontGlyphs = 0
 
+
 RE_ISODATES = re.compile("(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})")
 TEMPLATE_DIR = settings.TEMPLATE_DIR
 BUCKET = settings.CERT_BUCKET
@@ -1948,7 +1949,7 @@ class CertificateGen(object):
         # 0 1 - italic
         # 1 0 - bold
         # 1 1 - italic and bold
-        font_string=self.template_font_name+'-'+self.template_font_type
+        font_string = self.template_font_name + '-' + self.template_font_type
         addMapping(font_string, 0, 0, font_string)
         addMapping(font_string, 1, 0, self.template_font_name+'-Italic')
         addMapping(font_string, 1, 0, self.template_font_name+'-Bold')
