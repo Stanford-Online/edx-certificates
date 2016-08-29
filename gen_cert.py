@@ -74,6 +74,12 @@ BLANK_PDFS = {
     'portrait-A4': PdfFileReader(file("{0}/blank-portrait-A4.pdf".format(TEMPLATE_DIR), "rb")),
 }
 
+gets_md_cert_list = [
+    'DO',
+    'MD',
+    'MD,PhD',
+    'MBBS',
+]
 
 def get_cert_date(
         calling_date_parameter,
@@ -2004,12 +2010,35 @@ class CertificateGen(object):
                 verify_link=verify_link,
             )
 
+        # Add student name designation if it exists
+        student_name = u"{}".format(student_name.decode('utf-8'))  # Ensure consistent handling
+        if designation:
+            student_name = u"{}, {}".format(student_name, designation.decode('utf-8'))
+
+        # Add tag for designation if it exists
+        tag_string = ''
+        if designation in gets_md_cert_list:
+            if designation:
+                tag_string = 'MD/DO'
+            else:
+                tag_string = 'AHP'
+
+        # Add course credits if it exists
+        credit_info = self.cert_data.get('CREDITS')
+        credits_string=''
+        if credit_info:
+            credits_string = u"and is awarded {credit_info}".format(
+                credit_info=credit_info.decode('utf-8'),
+            )
+
         # Course Context
         context = {
             'date_string': get_cert_date(generate_date, self.issued_date, self.locale, self.timezone),
             'student_name': student_name.decode('utf-8'),
+            'tag_string': tag_string,
             'successfully_completed': successfully_completed,
             'course_title': self.long_course.decode('utf-8'),
+            'course_credits': credits_string.decode('utf-8'),
             'achievements_string': achievements_string,
             'achievements_description_string': achievements_description_string,
             'disclaimer_text': disclaimer_text,
