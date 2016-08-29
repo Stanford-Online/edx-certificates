@@ -1512,7 +1512,7 @@ class CertificateGen(object):
 
         styleArial = ParagraphStyle(name="arial", leading=10, fontName='Arial Unicode', allowWidows=0)
         styleOpenSansLight = ParagraphStyle(name="opensans-light", leading=10, fontName='OpenSans-Light', allowWidows=0)
-        styleDroidSerif = ParagraphStyle(name="droidserif", leading=10, fontName='DroidSerif', allowWidows=0)
+        styleDroidSerif = ParagraphStyle(name="droidserif-regular", leading=10, fontName='DroidSerif-Regular', allowWidows=0)
 
         # These are ordered by preference; cf. font_for_string() above
         fontlist = [
