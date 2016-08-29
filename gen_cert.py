@@ -1499,10 +1499,10 @@ class CertificateGen(object):
         addMapping('OpenSans-Light', 0, 0, 'OpenSans-Light')
         addMapping('OpenSans-Light', 0, 1, 'OpenSans-LightItalic')
         addMapping('OpenSans-Light', 1, 0, 'OpenSans-Bold')
-        addMapping('DroidSerif', 0, 0, 'DroidSerif')
-        addMapping('DroidSerif', 0, 1, 'DroidSerif-Italic')
-        addMapping('DroidSerif', 1, 0, 'DroidSerif-Bold')
-        addMapping('DroidSerif', 1, 1, 'DroidSerif-BoldItalic')
+        addMapping('DroidSerif-Regular', 0, 0, 'DroidSerif-Regular')
+        addMapping('DroidSerif-Regular', 0, 1, 'DroidSerif-Italic')
+        addMapping('DroidSerif-Regular', 1, 0, 'DroidSerif-Bold')
+        addMapping('DroidSerif-Regular', 1, 1, 'DroidSerif-BoldItalic')
 
         styleArial = ParagraphStyle(name="arial", leading=10, fontName='Arial Unicode', allowWidows=0)
         styleOpenSansLight = ParagraphStyle(name="opensans-light", leading=10, fontName='OpenSans-Light', allowWidows=0)
@@ -1510,7 +1510,7 @@ class CertificateGen(object):
 
         # These are ordered by preference; cf. font_for_string() above
         fontlist = [
-            ('DroidSerif', 'DroidSerif.ttf', styleDroidSerif),
+            ('DroidSerif-Regular', 'DroidSerif-Regular.ttf', styleDroidSerif),
             ('OpenSans-Light', 'OpenSans-Light.ttf', styleOpenSansLight),
             ('Arial Unicode', 'Ariel Unicode.ttf', styleArial),
         ]
