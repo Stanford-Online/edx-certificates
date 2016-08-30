@@ -2017,7 +2017,6 @@ class CertificateGen(object):
             )
 
         # Add student name designation if it exists
-        student_name = u"{}".format(student_name.decode('utf-8'))  # Ensure consistent handling
         if designation:
             student_name = u"{}, {}".format(student_name, designation.decode('utf-8'))
 
