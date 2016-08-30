@@ -51,6 +51,7 @@ def parse_args(args=sys.argv[1:]):
     parser.add_argument('-l', '--long-course', help='optional long course', default='')
     parser.add_argument('-i', '--issued-date', help='optional issue date')
     parser.add_argument('-T', '--assign-title', help='add random title after name', default=False, action="store_true")
+    parser.add_argument('-S', '--select-title', help='select title by integer(0-13)', default=0)
     parser.add_argument('-f', '--input-file', help='optional input file for names, one name per line')
     parser.add_argument(
         '-r',
@@ -118,7 +119,10 @@ def main():
                 issued_date=args.issued_date,
             )
             title = None
-            if args.assign_title:
+            if args.select_title.isdigit() and int(args.select_title) < len(stanford_cme_titles):
+                title = stanford_cme_titles[int(args.select_title)][0]
+                print "assigning specific title", name, title
+            elif args.assign_title:
                 title = random.choice(stanford_cme_titles)[0]
                 print "assigning random title", name, title
             grade = None

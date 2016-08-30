@@ -74,6 +74,13 @@ BLANK_PDFS = {
     'portrait-A4': PdfFileReader(file("{0}/blank-portrait-A4.pdf".format(TEMPLATE_DIR), "rb")),
 }
 
+gets_md_cert_list = [
+    'DO',
+    'MD',
+    'MD,PhD',
+    'MBBS',
+]
+
 
 def get_cert_date(
         calling_date_parameter,
@@ -171,6 +178,8 @@ class CertificateGen(object):
         # get the template version based on the course settings in the
         # certificates repo, with sensible defaults so that we can generate
         # pdfs differently for the different templates
+        self.template_font_name = cert_data.get('font_name', 'OpenSans')
+        self.template_font_type = cert_data.get('font_type', 'Light')
         self.template_version = cert_data.get('VERSION', 1)
         self.template_type = 'honor'
         # search for certain keywords in the file name, we'll probably want to
@@ -1497,18 +1506,23 @@ class CertificateGen(object):
         addMapping('OpenSans-Light', 0, 0, 'OpenSans-Light')
         addMapping('OpenSans-Light', 0, 1, 'OpenSans-LightItalic')
         addMapping('OpenSans-Light', 1, 0, 'OpenSans-Bold')
-        addMapping('DroidSerif', 0, 0, 'DroidSerif')
-        addMapping('DroidSerif', 0, 1, 'DroidSerif-Italic')
-        addMapping('DroidSerif', 1, 0, 'DroidSerif-Bold')
-        addMapping('DroidSerif', 1, 1, 'DroidSerif-BoldItalic')
+        addMapping('DroidSerif-Regular', 0, 0, 'DroidSerif-Regular')
+        addMapping('DroidSerif-Regular', 0, 1, 'DroidSerif-Italic')
+        addMapping('DroidSerif-Regular', 1, 0, 'DroidSerif-Bold')
+        addMapping('DroidSerif-Regular', 1, 1, 'DroidSerif-BoldItalic')
 
         styleArial = ParagraphStyle(name="arial", leading=10, fontName='Arial Unicode', allowWidows=0)
         styleOpenSansLight = ParagraphStyle(name="opensans-light", leading=10, fontName='OpenSans-Light', allowWidows=0)
-        styleDroidSerif = ParagraphStyle(name="droidserif", leading=10, fontName='DroidSerif', allowWidows=0)
+        styleDroidSerif = ParagraphStyle(
+            name="droidserif-regular",
+            leading=10,
+            fontName='DroidSerif-Regular',
+            allowWidows=0
+        )
 
         # These are ordered by preference; cf. font_for_string() above
         fontlist = [
-            ('DroidSerif', 'DroidSerif.ttf', styleDroidSerif),
+            ('DroidSerif-Regular', 'DroidSerif-Regular.ttf', styleDroidSerif),
             ('OpenSans-Light', 'OpenSans-Light.ttf', styleOpenSansLight),
             ('Arial Unicode', 'Ariel Unicode.ttf', styleArial),
         ]
@@ -1947,16 +1961,15 @@ class CertificateGen(object):
         # 0 1 - italic
         # 1 0 - bold
         # 1 1 - italic and bold
-        addMapping('OpenSans-Light', 0, 0, 'OpenSans-Light')
-        addMapping('OpenSans-Light', 1, 0, 'OpenSans-Bold')
-        addMapping('SourceSansPro-Regular', 0, 0, 'SourceSansPro-Regular')
-        addMapping('SourceSansPro-Regular', 1, 0, 'SourceSansPro-Bold')
-        addMapping('SourceSansPro-Regular', 1, 1, 'SourceSansPro-BoldItalic')
+        font_string = self.template_font_name + '-' + self.template_font_type
+        addMapping(font_string, 0, 0, font_string)
+        addMapping(font_string, 1, 0, self.template_font_name+'-Italic')
+        addMapping(font_string, 1, 0, self.template_font_name+'-Bold')
+        addMapping(font_string, 1, 1, self.template_font_name+'-BoldItalic')
 
         # These are ordered by preference; cf. font_for_string() above
         self.fontlist = [
-            ('SourceSansPro-Regular', 'SourceSansPro-Regular.ttf', None),
-            ('OpenSans-Light', 'OpenSans-Light.ttf', None),
+            (font_string, font_string+'.ttf', None),
             ('Arial Unicode', 'Arial Unicode.ttf', None),
         ]
         fontlist = self.fontlist
@@ -2003,12 +2016,34 @@ class CertificateGen(object):
                 verify_link=verify_link,
             )
 
+        # Add student name designation if it exists
+        if designation:
+            student_name = u"{}, {}".format(student_name, designation.decode('utf-8'))
+
+        # Add tag for designation if it exists
+        tag_string = ''
+        if designation in gets_md_cert_list:
+            if designation:
+                tag_string = 'MD/DO'
+            else:
+                tag_string = 'AHP'
+
+        # Add course credits if it exists
+        credit_info = self.cert_data.get('CREDITS')
+        credits_string = ''
+        if credit_info:
+            credits_string = u"and is awarded {credit_info}".format(
+                credit_info=credit_info.decode('utf-8'),
+            )
+
         # Course Context
         context = {
             'date_string': get_cert_date(generate_date, self.issued_date, self.locale, self.timezone),
             'student_name': student_name.decode('utf-8'),
+            'tag_string': tag_string,
             'successfully_completed': successfully_completed,
             'course_title': self.long_course.decode('utf-8'),
+            'course_credits': credits_string.decode('utf-8'),
             'achievements_string': achievements_string,
             'achievements_description_string': achievements_description_string,
             'disclaimer_text': disclaimer_text,
