@@ -443,13 +443,6 @@ class CertificateGen(object):
                 return True
         return False
 
-    def _use_non_latin(self, string):
-        """
-        Use this to detect when we are dealing with characters that
-        do not fit into Latin-1
-        """
-        return self._contains_characters_above(string, 0x0100)
-
     def _use_unicode_font(self, string):
         """
         FIXME: methods using this should consider using font_for_string()
