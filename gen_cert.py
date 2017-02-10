@@ -74,33 +74,26 @@ BLANK_PDFS = {
 
 
 def get_cert_date(
-        calling_date_parameter,
         configured_date_parameter,
         locale=settings.DEFAULT_LOCALE,
         timezone=settings.TIMEZONE,
 ):
     """Get pertinent date for display on cert
 
-    - If cert passes a set date in 'calling_date_parameter', format that
-    - If using the "ROLLING" certs feature, use today's date
-    - If all else fails use 'configured_date_parameter' for date
+    - If 'configured_date_parameter' is set, use that date.
+    - Else, use today's date.
     """
-    utc_zone = get_timezone('UTC')
+    from_zone = get_timezone(settings.TIMEZONE)
     to_zone = get_timezone(timezone)
-
-    if calling_date_parameter:
-        date = calling_date_parameter
-    elif configured_date_parameter == "ROLLING":
-        date = datetime.today()
-    else:
+    if configured_date_parameter:
         date = datetime.strptime(configured_date_parameter, '%y-%m-%d')
-
-    date = date.replace(tzinfo=utc_zone)
+    else:
+        date = datetime.today()
+    date = date.replace(tzinfo=from_zone)
     date = date.astimezone(to_zone)
     date = date.date()
     date_value = format_date(date, 'long', locale=locale)
     date_string = u"{0}".format(date_value)
-
     return date_string
 
 
@@ -152,7 +145,7 @@ class CertificateGen(object):
         try:
             self.long_org = long_org or cert_data.get('LONG_ORG', '').encode('utf-8') or settings.DEFAULT_ORG
             self.long_course = cert_data.get('LONG_COURSE', '').encode('utf-8') or long_course or ''
-            self.issued_date = issued_date or cert_data.get('ISSUED_DATE', '').encode('utf-8') or 'ROLLING'
+            self.issued_date = issued_date or cert_data.get('ISSUED_DATE', '').encode('utf-8')
             self.interstitial_texts = collections.defaultdict(interstitial_factory())
             interstitial_dict = {
                 key.encode('utf8'): value.encode('utf8')
@@ -441,7 +434,6 @@ class CertificateGen(object):
         filename=TARGET_FILENAME,
         grade=None,
         designation=None,
-        generate_date=None,
     ):
         """Generate a PDF certificate, signature and html files for validation.
 
@@ -454,9 +446,6 @@ class CertificateGen(object):
         filename      - the filename to write out, e.g., 'Statement.pdf'.
                         Defaults to settings.TARGET_FILENAME.
         grade         - the grade received by the student. Defaults to 'Pass'
-        generate_date - specifies an ISO formatted date (i.e., '2012-02-02')
-                        with which to stamp the cert. Defaults to CERT_DATA's
-                        ISSUED_DATE, or today's date for ROLLING.
 
         CONFIGURATION PARAMETERS:
             The following items are brought in from the cert-data.yml stanza for the
@@ -465,9 +454,7 @@ class CertificateGen(object):
                          unset means to use the value passed in as part of the
                          certificate request.
         ISSUED_DATE    - (optional) If given, the date string which should be
-                         stamped onto each and every certificate. The value
-                         ROLLING is equivalent to leaving ISSUED_DATE unset, which
-                         stamps the certificates with the current date.
+                         stamped onto each and every certificate.
         HAS_DISCLAIMER - (optional) If given, the programmatic disclaimer that
                          is usually rendered at the bottom of the page, is not.
         TEMPLATEFILE   - (optional) If given, the filename referred to by
@@ -573,7 +560,7 @@ class CertificateGen(object):
 
         # Course Context
         context = {
-            'date_string': get_cert_date(generate_date, self.issued_date, self.locale, self.timezone),
+            'date_string': get_cert_date(self.issued_date, self.locale, self.timezone),
             'student_name': student_name.decode('utf-8'),
             'successfully_completed': successfully_completed,
             'course_title': self.long_course.decode('utf-8'),
