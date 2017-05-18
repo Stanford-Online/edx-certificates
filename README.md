@@ -3,6 +3,11 @@
 This script will continuously monitor an XQueue to generate course
 certificates for users.
 
+TODO
+----
+
+Document certificate work...
+
 
 Generating sample certificates
 -------------------------
